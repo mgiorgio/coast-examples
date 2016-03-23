@@ -4,7 +4,6 @@
   Island/include/base
 )
 
-(define CERTIFICATE/PUBLIC "./certificates/public/")
 (define CERTIFICATE/SECRET "./certificates/secret/")
 (define ALICE/SECRET/PATH (string-append CERTIFICATE/SECRET "alice_secret"))
 (define BOB/SECRET/PATH   (string-append CERTIFICATE/SECRET "bob_secret"))
