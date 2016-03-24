@@ -10,9 +10,6 @@
 (define ALICE/SECRET/PATH (string-append CERTIFICATE/SECRET "alice_secret"))
 (define BOB/SECRET/PATH   (string-append CERTIFICATE/SECRET "bob_secret"))
 
-(define ALICE/CURVE/SECRET (path-to-curve ALICE/SECRET/PATH))
-(define BOB/CURVE/SECRET   (path-to-curve BOB/SECRET/PATH))
-
 ;; Alice's public key.
 (define ALICE/KP/BASE64 #"wdvbN1svfhEAewhM76oSVPKj-4kzfbDhaiTFW61VdUc")
 
@@ -21,8 +18,11 @@
 ;; Download all of the predefined public certificates.
 (keystore/load KEYSTORE CERTIFICATE/PUBLIC)
 
-;; The textual representation of the CURL for Alice's display service.
-(define/curl/inline ALICE/CURL/DISPLAY
+(define ALICE/CURVE/SECRET (path-to-curve ALICE/SECRET/PATH))
+(define BOB/CURVE/SECRET   (path-to-curve BOB/SECRET/PATH))
+
+;; The textual representation of the CURL for Alice's echo service.
+(define/curl/inline ALICE/CURL/ECHO
   #<<!!
 SIGNATURE = #"Nxm6zGGiZDiao5vc8aYfdEeOIME104GEeOt4_K3ys2xDP673elLrwWa56SKAWp7gR2RI25QKZW0NvB2i23NJCg"
 CURL
@@ -41,31 +41,50 @@ CURL
 (define (bob/boot alice/curl)
   ; Wait until Bob sees Alice.
   (island/enter/wait ALICE/KP/BASE64)
-  ; Send message.
-  (send alice/curl "Hi, this is Bob!"))
+  
+  ; Create a CURL that the Echo Server (Alice) will use to send the response.
+  (let ([p (promise/new)])
+    ; Send a pair with the message and the CURL to receive it back.
+    (send alice/curl (cons (promise/resolver p) "Hi, this is Bob!"))
+    ; Wait for the response.
+    (let* ([m (promise/block p)]
+           [message (murmur/payload m)])
+      ; Show the response.
+      (display message))))
 
-;; Bootstrap function for Alice who offers a display service.
+;; Bootstrap function for Alice who offers an Echo Service.
 (define (alice/boot)
-  ; Define a (service/display) function.
-  (define (service/display)
+  ; Define a (service/echo) function.
+  (define (service/echo)
     ; Create a duplet to receive messages via Alice's CURL.
     ; Notice the use of (islet/curl/known/new). We use this function because it is a known CURL, we are not creating a brand new CURL.
     ; '(echo) is the service path (it must be the same as the one in the textual representation)
     ; 'access:send:echo is the access id (it must be the same as the one in the textual representation)
     (let ([server/duplet (islet/curl/known/new '(echo) 'access:send:echo GATE/ALWAYS environ/null)])
+      ; Wait for messages.
       (let loop ([m (duplet/block server/duplet)])
+        ; Get the murmur's payload.
         (let ([payload (murmur/payload m)])
-          (display payload))
+          ; Verify that what the server received is well-formed.
+          (when (and
+                 ; It is a pair.
+                 (pair? payload)
+                 ; Left element is a CURL.
+                 (curl? (car payload))
+                 ; Right element is a string.
+                 (string? (cdr payload)))
+            ; Send it back.
+            (send (car payload) (cdr payload))))
         (loop (duplet/block server/duplet)))))
   
-  (service/display))
+  (service/echo))
 
 ;; Create an in-memory CURL from the textual representation.
-(define alice/curl/display (curl/zpl/safe-to-curl ALICE/CURL/DISPLAY KEYSTORE))
+(define alice/curl/echo (curl/zpl/safe-to-curl ALICE/CURL/ECHO KEYSTORE))
 
 ;; Instantiate Alice and Bob.
 (define alice (island/new 'alice ALICE/CURVE/SECRET alice/boot))
-(define bob (island/new 'bob BOB/CURVE/SECRET (lambda () (bob/boot alice/curl/display))))
+(define bob (island/new 'bob BOB/CURVE/SECRET (lambda () (bob/boot alice/curl/echo))))
 
 ;; Set Alice' and Bob' keystore. Since both islands are in the same address space, they can share the keystore.
 (island/keystore/set alice KEYSTORE)
