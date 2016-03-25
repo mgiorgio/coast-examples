@@ -86,7 +86,7 @@ CURL
 (define alice (island/new 'alice ALICE/CURVE/SECRET alice/boot))
 (define bob (island/new 'bob BOB/CURVE/SECRET (lambda () (bob/boot alice/curl/echo))))
 
-;; Set Alice' and Bob' keystore. Since both islands are in the same address space, they can share the keystore.
+;; Set Alice's and Bob's keystore. Since both islands are in the same address space, they can share the keystore.
 (island/keystore/set alice KEYSTORE)
 (island/keystore/set bob   KEYSTORE)
 

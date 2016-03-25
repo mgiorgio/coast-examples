@@ -65,6 +65,7 @@ CURL
     ; Notice the use of (islet/curl/known/new). We use this function because it is a known CURL, we are not creating a brand new CURL.
     ; '(echo) is the service path (it must be the same as the one in the textual representation)
     ; 'access:send:echo is the access id (it must be the same as the one in the textual representation)
+    ; The (gate/whitelist/island) function creates a gate that only lets pass messages coming from a specific set of islands.
     (let ([server/duplet (islet/curl/known/new '(echo) 'access:send:echo (gate/whitelist/island BOB/KP/BASE64) environ/null)])
       ; Wait for messages.
       (let loop ([m (duplet/block server/duplet)])
@@ -92,7 +93,7 @@ CURL
 (define bob (island/new 'bob BOB/CURVE/SECRET (lambda () (client/boot alice/curl/echo))))
 (define carol (island/new 'carol CAROL/CURVE/SECRET (lambda () (client/boot alice/curl/echo))))
 
-;; Set Alice' and Bob' keystore. Since both islands are in the same address space, they can share the keystore.
+;; Set Alice's, Bob's, and Carol's keystore. Since both islands are in the same address space, they can share the keystore.
 (island/keystore/set alice KEYSTORE)
 (island/keystore/set bob   KEYSTORE)
 (island/keystore/set carol   KEYSTORE)
